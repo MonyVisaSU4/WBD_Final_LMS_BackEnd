@@ -14,26 +14,53 @@ class AuthController {
 
     // Register
     public function register($data) {
+        if (!$data || !isset($data['name'], $data['email'], $data['password'])) {
+            Response::json(['message' => 'Invalid input data'], 400);
+            return;
+        }
+
         $this->librarian->name = $data['name'];
         $this->librarian->email = $data['email'];
         $this->librarian->password = password_hash($data['password'], PASSWORD_BCRYPT);
 
-        if($this->librarian->create()) {
-            http_response_code()::json(['message'=>'Register success'], 201);
+        if ($this->librarian->create()) {
+            Response::json(['message' => 'Register success'], 201);
         } else {
-            http_response_code()::json(['message'=>'Email already exists'], 400);
+            Response::json(['message' => 'Email already exists'], 400);
         }
     }
 
     // Login
     public function login($data) {
-        $librarian = $this->librarian->getByEmail($data['email']);
-        if($librarian && password_verify($data['password'], $librarian['password'])) {
-            // Generate JWT token (example)
-            $token = bin2hex(random_bytes(16));
-            http_response_code()::json(['token'=>$token], 200);
-        } else {
-            http_response_code()::json(['message'=>'Invalid credentials'], 401);
+        if (!$data || !isset($data['email'], $data['password'])) {
+            Response::json(['message' => 'Invalid input data'], 400);
+            return;
         }
+
+        $librarian = $this->librarian->getByEmail($data['email']);
+
+        if (!$librarian) {
+            // Email not found
+            Response::json(['message' => 'Invalid email'], 401);
+            return;
+        }
+
+        if (!password_verify($data['password'], $librarian['password'])) {
+            // Password incorrect
+            Response::json(['message' => 'Invalid password'], 401);
+            return;
+        }
+
+        // ✅ If both email and password correct, generate token
+        $token = bin2hex(random_bytes(16));
+        Response::json([
+            'message' => 'Login success',
+            'token' => $token,
+            'librarian' => [
+                'id' => $librarian['id'],
+                'name' => $librarian['name'],
+                'email' => $librarian['email']
+            ]
+        ], 200);
     }
 }
